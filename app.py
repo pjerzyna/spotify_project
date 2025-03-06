@@ -7,8 +7,8 @@ from simulated_annealing import PlaylistGenerator
 app = Flask(__name__)
 
 # Spotify API Configuration
-CLIENT_ID = ""
-CLIENT_SECRET = ""
+CLIENT_ID = "086e22fcf14e4f32b6ca77f5ce456f49"   #testowo
+CLIENT_SECRET = "08549945ea8249fc831116c35291e9f8"  #testowo tez POZNIEJ USUNAC
 REDIRECT_URI = "http://localhost:5000/callback"
 
 # Load dataset

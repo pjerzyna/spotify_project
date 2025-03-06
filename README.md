@@ -46,3 +46,4 @@ python app.py
 
 ## TODO 📝
 - [ ] Complete API documentation
+- [ ] Write appropriate description about installation and setup
