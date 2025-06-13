@@ -3,30 +3,32 @@ from flask import Flask, redirect, request, jsonify
 import requests
 import pandas as pd
 from simulated_annealing import PlaylistGenerator
+from dotenv import load_dotenv
+import os
 
 app = Flask(__name__)
 
-# Spotify API Configuration
-CLIENT_ID = "086e22fcf14e4f32b6ca77f5ce456f49"   #testowo
-CLIENT_SECRET = "08549945ea8249fc831116c35291e9f8"  #testowo tez POZNIEJ USUNAC
-REDIRECT_URI = "http://localhost:5000/callback"
+# Spotify API Configuration - set your own client_id/secret from spoti account
+load_dotenv()
+CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+REDIRECT_URI = "http://localhost:5000/callback" 
 
 # Load dataset
 songs_dataset = pd.read_csv('dataset.csv')
 
-# Zabezpieczenie: jeśli niektóre wartości są NaN, konwertujemy na sensowne typy
-# Przykładowo:
+# Safety mechanism: any NaN values are automatically converted to valid defaults or appropriate types.
 songs_dataset['track_name'] = songs_dataset['track_name'].fillna('').astype(str)
 songs_dataset['artists'] = songs_dataset['artists'].fillna('').astype(str)
 
-# Jeżeli w CSV kolumna gatunku ma nazwę 'genre', a nie 'track_genre',
-# usuń albo zmień odpowiednio poniższą linię. Ważne, byś używał właściwej nazwy.
+# If the genre column in the CSV is named 'genre' instead of 'track_genre',
+# delete or modify the line below. It's important to use the correct column name.
 if 'track_genre' in songs_dataset.columns:
     songs_dataset['track_genre'] = songs_dataset['track_genre'].fillna('').astype(str)
 elif 'genre' in songs_dataset.columns:
     songs_dataset['genre'] = songs_dataset['genre'].fillna('').astype(str)
 
-# Dla danceability, energy, popularity - wstaw 0 jeśli brak
+# For danceability, energy, popularity - put 0 if is missing
 for col in ['danceability', 'energy', 'popularity']:
     if col in songs_dataset.columns:
         songs_dataset[col] = pd.to_numeric(songs_dataset[col], errors='coerce').fillna(0)
@@ -79,8 +81,8 @@ def search():
     if not query:
         return jsonify({"error": "Query parameter is required"}), 400
 
-    # Zakładamy, że kolumny w CSV to: track_name, artists, track_genre (lub genre), danceability, energy, popularity
-    # Filtrujemy piosenki
+    # Assume that the CSV contains the following columns: 
+    # track_name, artists, track_genre (or genre), danceability, energy, popularity
     filtered_songs = songs_dataset[
         songs_dataset['track_name'].str.lower().str.contains(query) |
         songs_dataset['artists'].str.lower().str.contains(query)
@@ -93,14 +95,14 @@ def search():
 
     results = []
     for _, song in paginated_songs.iterrows():
-        # Dopasuj kolumny w zależności od nazwy w CSV:
-        # track_genre lub genre
+        # Match columns in case of name in CSV:
+        # track_genre or genre
         if 'track_genre' in song:
             current_genre = song['track_genre']
         elif 'genre' in song:
             current_genre = song['genre']
         else:
-            current_genre = ''  # brak kolumny
+            current_genre = ''  
 
         results.append({
             "track_id": song.get('track_id', ''),
@@ -124,14 +126,14 @@ def create_spotify_playlist():
     data = request.json
     access_token = data.get('accessToken')
     playlist_name = data.get('playlistName', 'Generated Playlist')
-    tracks = data.get('tracks', [])  # to jest lista obiektów piosenek
+    tracks = data.get('tracks', []) # List of song objects
 
     if not access_token:
         return jsonify({"error": "Access token is required"}), 400
     
-    # KROK 1: tworzenie nowej playlisty (użytkownika)
+    # Step 1 – User playlist creation
     create_url = "https://api.spotify.com/v1/users/{user_id}/playlists"
-    # Musisz najpierw pobrać user_id z /me, bo user_id jest potrzebne do tworzenia playlist
+    # You need to download user_id from /me, bcs user_id is required to create a playlist
     me_response = requests.get(
         "https://api.spotify.com/v1/me",
         headers={"Authorization": f"Bearer {access_token}"}
@@ -156,11 +158,13 @@ def create_spotify_playlist():
 
     playlist_id = create_response.json().get('id')
 
-    # KROK 2: dodawanie utworów
-    # W your dataset, 'track_id' prawdopodobnie jest w formacie np. "spotify:track:..."
-    # lub samo ID. Musisz przekazać URLe w formacie "spotify:track:ID"
-    # załóżmy, że track_id to ID. 
-    # W doc. Spotify: POST /v1/playlists/{playlist_id}/tracks?uris=spotify:track:{id1},spotify:track:{id2},...
+    # STEP 2: adding songs 
+    # In dataset, 'track_id' is likely in the format "spotify:track:..." 
+    # or just the raw ID. You need to provide URIs in the format "spotify:track:ID".
+    # Let's assume that track_id is just the raw ID.
+    # According to the Spotify docs:
+    # POST /v1/playlists/{playlist_id}/tracks?uris=spotify:track:{id1},spotify:track:{id2},...
+
     track_uris = []
     for song in tracks:
         # => "spotify:track:{song['track_id']}"
@@ -180,7 +184,7 @@ def create_spotify_playlist():
 @app.route('/generate_playlist', methods=['POST'])
 def generate_playlist():
     try:
-        # Pobieranie danych z żądania
+        # Taking data from demand
         access_token = request.json.get('access_token')
         playlist_name = request.json.get('playlist_name', 'Generated Playlist')
         selected_tracks = request.json.get('selected_tracks', [])
