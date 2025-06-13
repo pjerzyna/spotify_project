@@ -3,7 +3,7 @@
 ## 📌 Project Overview 
 Spotify Playlist Generator is an application that generates optimal playlists using a **simulated annealing algorithm** and a provided dataset. The application consists of a backend written in **Python** and a frontend built with modern web technologies, and allows users to directly export the generated playlists to their Spotify account.
 
-
+ 
 ## 🖼️ Preview
 <p align="center">
   <img src="media/default_site2.png" width="600"/>
